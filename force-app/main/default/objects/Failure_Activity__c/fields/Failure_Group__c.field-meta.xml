@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="UTF-8"?><CustomField xmlns="http://soap.sforce.com/2006/04/metadata"><fullName>Failure_Group__c</fullName><label>Failure Group</label><type>Lookup</type><referenceTo>Failure_Group__c</referenceTo><relationshipName>Activities</relationshipName><deleteConstraint>SetNull</deleteConstraint></CustomField>

@@ -1,0 +1,6 @@
+{
+  "orgName": "Flow Failure Monitor CI",
+  "edition": "Developer",
+  "features": ["API", "AuthorApex"],
+  "settings": {"lightningExperienceSettings": {"enableS1DesktopEnabled": true}}
+}

@@ -1,0 +1,8 @@
+{
+  "packageDirectories": [{"path":"force-app","default":true,"package":"Flow Failure Monitor","versionName":"Version 0.2","versionNumber":"0.2.0.NEXT"}],
+  "name":"flow-failure-monitor",
+  "namespace":"",
+  "sfdcLoginUrl":"https://login.salesforce.com",
+  "sourceApiVersion":"67.0",
+  "packageAliases": {}
+}

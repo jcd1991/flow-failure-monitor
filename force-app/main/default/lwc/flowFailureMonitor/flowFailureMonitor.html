@@ -1,0 +1,38 @@
+<template>
+    <lightning-card title="Flow Failure Monitor" icon-name="utility:warning">
+        <div class="slds-p-horizontal_small">
+            <div class="summary-grid slds-m-bottom_small">
+                <div class="summary-card"><span class="summary-label">Failure groups</span><strong>{groups.length}</strong></div>
+                <div class="summary-card"><span class="summary-label">Occurrences</span><strong>{totalOccurrences}</strong></div>
+                <div class="summary-card"><span class="summary-label">New</span><strong>{newGroups}</strong></div>
+                <div class="summary-card"><span class="summary-label">Investigating</span><strong>{investigatingGroups}</strong></div>
+            </div>
+            <lightning-combobox label="Status" value={status} options={statusOptions} onchange={changeStatus}></lightning-combobox>
+            <template if:true={loading}><lightning-spinner alternative-text="Loading"></lightning-spinner></template>
+            <template if:false={loading}>
+                <template if:true={groups.length}>
+                    <div class="slds-scrollable_x"><table class="slds-table slds-table_cell-buffer slds-table_bordered slds-m-top_small"><thead><tr><th>Flow / Element</th><th>Occurrences</th><th>Status</th><th>Recovery</th></tr></thead><tbody>
+                        <template for:each={groups} for:item="group"><tr key={group.Id}><td><strong>{group.Flow_Name__c}</strong><div>{group.Element_Name__c}</div><div class="message">{group.Representative_Message__c}</div></td><td>{group.Occurrence_Count__c}</td><td><lightning-badge label={group.Status__c}></lightning-badge></td><td><lightning-button label="Investigate" data-id={group.Id} onclick={openPreview}></lightning-button></td></tr></template>
+                    </tbody></table></div>
+                </template>
+                <template if:false={groups.length}><p class="slds-p-around_medium">No Flow failure groups match this filter.</p></template>
+            </template>
+        </div>
+    </lightning-card>
+
+    <template if:true={showPreview}><section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open"><div class="slds-modal__container">
+        <header class="slds-modal__header"><h2 class="slds-text-heading_medium">Investigate and recover safely</h2></header>
+        <div class="slds-modal__content slds-p-around_medium">
+            <template if:true={hasSamples}><h3 class="slds-text-heading_small">Captured failures</h3><template for:each={samples} for:item="sample"><div key={sample.Id} class="slds-box slds-m-top_x-small"><strong>{sample.Status__c}</strong> — {sample.Fault_Message__c}<br/><span class="muted">Record: {sample.Record_Id__c} · Retry count: {sample.Retry_Count__c}</span></div></template></template>
+            <h3 class="slds-text-heading_small slds-m-top_medium">Troubleshooting checklist</h3><ul class="slds-list_dotted"><li>Confirm the Flow version and failing element.</li><li>Validate the affected record and required fields.</li><li>Check whether the operation already partially completed.</li><li>Choose an approved recovery action only after review.</li></ul>
+            <div class="slds-m-top_small"><lightning-button label="Mark investigating" data-status="Investigating" onclick={setGroupStatus}></lightning-button><lightning-button class="slds-m-left_x-small" label="Mark resolved" data-status="Resolved" onclick={setGroupStatus}></lightning-button></div>
+            <template if:true={hasHistory}><h3 class="slds-text-heading_small slds-m-top_medium">Resolution history</h3><template for:each={history} for:item="item"><div key={item.Id} class="slds-box slds-m-top_x-small">{item.Activity_Type__c}: {item.From_Status__c} → {item.To_Status__c}<br/>{item.Notes__c}</div></template></template>
+            <h3 class="slds-text-heading_small slds-m-top_medium">Approved recovery action</h3><lightning-combobox label="Select action" variant="label-hidden" value={selectedAction} options={actionOptions} onchange={selectAction}></lightning-combobox>
+            <p class="slds-m-top_small">First run a dry-run. A demo action can then execute its one allowlisted recovery Flow on the selected record. Other actions remain simulation-only.</p>
+            <template if:true={actionLoadError}><p class="slds-text-color_error">Recovery actions could not be loaded: {actionLoadError}</p></template>
+            <template if:true={previewRunning}><p role="status">Running dry-run preview…</p></template><template if:true={previewError}><p class="slds-text-color_error" role="alert">{previewError}</p></template><template if:true={statusMessage}><p class="slds-m-top_small" role="status">{statusMessage}</p></template>
+            <template if:true={preview}><p><strong>Eligible:</strong> {preview.job.Eligible_Count__c} <strong>Skipped:</strong> {preview.job.Skipped_Count__c} <strong>Job:</strong> {preview.job.Name}</p><template for:each={preview.results} for:item="result"><div key={result.Id} class="slds-box slds-m-top_x-small"><strong>{result.Outcome__c}</strong> — {result.Reason__c}</div></template></template>
+        </div>
+        <footer class="slds-modal__footer recovery-footer"><div class="recovery-row"><lightning-button label="Cancel" onclick={closePreview}></lightning-button><lightning-button variant="neutral" label="Run dry-run" disabled={previewDisabled} onclick={runPreview}></lightning-button></div><div class="recovery-row recovery-row-actions"><div class="recovery-choice"><lightning-button variant="neutral" label="Simulate" disabled={simulateDisabled} onclick={simulate}></lightning-button><span class="action-caption">(no business change)</span></div><div class="recovery-choice"><lightning-button variant="brand" label="Execute" disabled={executeDisabled} onclick={executeDemo}></lightning-button><span class="action-caption">(approved recovery)</span></div></div></footer>
+    </div></section><div class="slds-backdrop slds-backdrop_open"></div></template>
+</template>

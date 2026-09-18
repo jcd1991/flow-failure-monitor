@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="UTF-8"?><CustomObject xmlns="http://soap.sforce.com/2006/04/metadata"><label>FFM Failure Capture</label><pluralLabel>FFM Failure Captures</pluralLabel><eventType>HighVolume</eventType><publishBehavior>PublishImmediately</publishBehavior><deploymentStatus>Deployed</deploymentStatus></CustomObject>

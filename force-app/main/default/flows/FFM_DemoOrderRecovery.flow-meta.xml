@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <description>Allowlisted portfolio demo recovery Flow. Updates only the selected demo Account and never replays the failed transaction.</description>
+    <interviewLabel>FFM Demo Order Recovery {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>FFM Demo Order Recovery</label>
+    <processType>AutoLaunchedFlow</processType>
+    <start><locationX>176</locationX><locationY>0</locationY><connector><targetReference>GetAccount</targetReference></connector></start>
+    <variables><name>recordId</name><dataType>String</dataType><isCollection>false</isCollection><isInput>true</isInput><isOutput>false</isOutput></variables>
+    <variables><name>accountRecord</name><dataType>SObject</dataType><objectType>Account</objectType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <recordLookups><name>GetAccount</name><label>Get selected demo Account</label><locationX>176</locationX><locationY>120</locationY><connector><targetReference>SetRecovered</targetReference></connector><filterLogic>and</filterLogic><filters><field>Id</field><operator>EqualTo</operator><value><elementReference>recordId</elementReference></value></filters><object>Account</object><outputReference>accountRecord</outputReference></recordLookups>
+    <assignments><name>SetRecovered</name><label>Set recovery marker</label><locationX>176</locationX><locationY>240</locationY><connector><targetReference>UpdateAccount</targetReference></connector><assignmentItems><assignToReference>accountRecord.Description</assignToReference><operator>Assign</operator><value><stringValue>FFM demo recovery executed through an approved recovery Flow.</stringValue></value></assignmentItems></assignments>
+    <recordUpdates><name>UpdateAccount</name><label>Update selected demo Account</label><locationX>176</locationX><locationY>360</locationY><inputReference>accountRecord</inputReference></recordUpdates>
+    <status>Active</status>
+</Flow>

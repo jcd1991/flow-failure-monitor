@@ -1,0 +1,8 @@
+flow-failure-monitor-mcp/node_modules/
+flow-failure-monitor-mcp/dist/
+.sf/
+.sfdx/
+*.log
+.env
+.env.*
+!.env.example

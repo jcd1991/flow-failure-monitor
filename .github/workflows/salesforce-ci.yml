@@ -1,0 +1,19 @@
+name: Salesforce CI
+on: [push, pull_request]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: forcedotcom/sfdx-actions/setup-sfdx@v1
+        with: {sfdxcli: true}
+      - name: Authenticate CI org
+        run: echo "$SF_ACCESS_TOKEN" | sf org login access-token --alias ci --instance-url "$SF_INSTANCE_URL"
+        env:
+          SF_ACCESS_TOKEN: ${{ secrets.SF_ACCESS_TOKEN }}
+          SF_INSTANCE_URL: ${{ secrets.SF_INSTANCE_URL }}
+      - name: Validate package metadata
+        run: sf project deploy start --source-dir force-app --target-org ci --check-only --test-level RunLocalTests --wait 30
+      - name: Run MCP typecheck when dependencies are available
+        working-directory: flow-failure-monitor-mcp
+        run: npm ci && npm run build
