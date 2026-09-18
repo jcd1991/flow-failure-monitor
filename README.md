@@ -85,6 +85,10 @@ sf apex run test --target-org sflens-dev --test-level RunLocalTests --code-cover
 
 For the repeatable UI demo, follow [`docs/github-demo-walkthrough.md`](docs/github-demo-walkthrough.md). For the complete detection → preview → recovery sequence, use [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
+### CI behavior
+
+Every push and pull request checks the Salesforce source layout, builds the MCP companion, and runs its production dependency audit. If the repository has `SF_ACCESS_TOKEN` and `SF_INSTANCE_URL` Actions secrets, CI also installs the Salesforce CLI, authenticates the configured org, and performs a `--dry-run` deployment with local Apex tests. Without those secrets, org validation is skipped with a visible notice; no credentials are required to contribute to the public repo.
+
 ## Package contents
 
 - `Flow_Error__c` — structured error and resolution record.
