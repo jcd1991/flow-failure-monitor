@@ -1,6 +1,121 @@
-# Flow Failure Monitor package
+# Flow Failure Monitor
 
-Flow Failure Monitor is a Salesforce-native, package-ready observability layer for Flow failures. It stores structured fault details, groups recurring errors, tracks resolution state, and gives admins a dashboard to investigate and retry safe operations.
+<p align="center">
+  <strong>See the failure. Understand the cause. Recover safely.</strong><br />
+  A Salesforce-native observability demo for Flow failures — with explicit safety gates instead of blind replay.
+</p>
+
+<p align="center">
+  <a href="https://github.com/jcd1991/flow-failure-monitor/actions"><img src="https://img.shields.io/github/actions/workflow/status/jcd1991/flow-failure-monitor/salesforce-ci.yml?label=CI&style=for-the-badge" alt="CI status" /></a>
+  <img src="https://img.shields.io/badge/Salesforce-LWC%20%2B%20Apex-0b5cab?style=for-the-badge&logo=salesforce&logoColor=white" alt="Salesforce" />
+  <img src="https://img.shields.io/badge/Recovery-approval%20gated-13b886?style=for-the-badge" alt="Approval gated recovery" />
+  <img src="https://img.shields.io/badge/MCP-companion%20server-7c3aed?style=for-the-badge" alt="MCP companion" />
+</p>
+
+<p align="center">
+  <a href="docs/github-demo-walkthrough.md">Walkthrough</a> ·
+  <a href="docs/demo-runbook.md">Runbook</a> ·
+  <a href="docs/architecture-and-security.md">Architecture & security</a> ·
+  <a href="docs/portfolio-readiness.md">Portfolio readiness</a>
+</p>
+
+---
+
+## The 30-second story
+
+When a Flow fails, the useful question is not “can we replay it?” It is:
+
+> **What happened, what may already have changed, and what is the safest next action?**
+
+Flow Failure Monitor captures structured fault context, groups recurring fingerprints, gives an admin a focused investigation queue, and makes recovery an explicit, reviewable decision.
+
+![Detect and investigate a Flow failure](docs/media/ffm-detect-investigate.gif)
+
+![Preview and execute a safe recovery](docs/media/ffm-safe-recovery.gif)
+
+_The GIFs are a sanitized storyboard of the real portfolio workflow._ The demo org walkthrough and repeatable scripts are in [`docs/github-demo-walkthrough.md`](docs/github-demo-walkthrough.md).
+
+## Why this is safer than “retry failed Flow”
+
+A failed Flow may already have created records, sent email, made a callout, or updated related records. A generic replay can duplicate those side effects. This project therefore uses a deliberately narrow model:
+
+```text
+Captured fault → grouped investigation → dry-run preview → explicit approval
+                                                   ↓
+                              one configured recovery Flow → audit result
+```
+
+The demo recovery Flow (`FFM_DemoOrderRecovery`) changes only the selected demo Account. It does not replay `FFM_DemoOrderFlow`, send email, make a callout, or touch unrelated records. A stale or invalid record is rejected before the recovery Flow is invoked.
+
+## What you can demo
+
+| Moment | What the audience sees | Proof in the repo |
+| --- | --- | --- |
+| **1 · Detect** | A Flow fault lands in the monitor with Flow, element, message, record, and fingerprint | [`scripts/e2e-flow-fault.apex`](scripts/e2e-flow-fault.apex) |
+| **2 · Investigate** | Similar failures are grouped and the admin gets a troubleshooting checklist | [`docs/demo-runbook.md`](docs/demo-runbook.md) |
+| **3 · Preview** | Dry-run shows eligible/skipped records without business change | [`scripts/e2e-preview.apex`](scripts/e2e-preview.apex) |
+| **4 · Safety** | An invalid record is skipped and the recovery Flow is never called | [`scripts/e2e-invalid-record-execute.apex`](scripts/e2e-invalid-record-execute.apex) |
+| **5 · Recover** | An approved, allowlisted Flow updates one demo record and writes audit history | [`scripts/e2e-actual-recovery.apex`](scripts/e2e-actual-recovery.apex) |
+
+## Architecture at a glance
+
+- **Salesforce package layer:** custom objects, fault-path invocable Apex, grouping, dashboard LWC, DTO-only bounded API, permission sets, and Apex tests.
+- **MCP companion:** `flow-failure-monitor-mcp/` calls the package API; it does not embed a model or expose arbitrary SOQL/Apex.
+- **Recovery boundary:** `Recovery_Action__c` names an approved Flow and its limits. Execution is explicit, audited, idempotency-aware, and never automatic.
+
+```text
+Flow fault connector
+        ↓
+FFM_LogFlowErrorAction → Flow_Error__c → Failure_Group__c
+                                             ↓
+                                  LWC / bounded API / MCP
+                                             ↓
+                              preview → approval → allowlisted Flow
+```
+
+## Run it locally
+
+Requires Salesforce CLI and a Dev Hub for future managed 2GP packaging:
+
+```bash
+sf org login web --alias sflens-dev
+sf project deploy start --source-dir force-app --target-org sflens-dev
+sf apex run test --target-org sflens-dev --test-level RunLocalTests --code-coverage
+```
+
+For the repeatable UI demo, follow [`docs/github-demo-walkthrough.md`](docs/github-demo-walkthrough.md). For the complete detection → preview → recovery sequence, use [`docs/demo-runbook.md`](docs/demo-runbook.md).
+
+## Package contents
+
+- `Flow_Error__c` — structured error and resolution record.
+- `FFM_LogFlowErrorAction` — invocable Apex action for Flow fault paths.
+- `FFM_FlowErrorService` — dashboard queries and controlled status updates.
+- `FFM_FlowFailureApiV2` — DTO-only, permission-gated REST API with strict limits and dry-run preview.
+- `flow-failure-monitor-mcp/` — separate MCP companion that delegates to the API.
+- `flowFailureMonitor` — Lightning Web Component dashboard.
+- `FFM_DemoOrderFlow` + `FFM_DemoOrderRecovery` — packaged end-to-end demo pair.
+- `scripts/` — executable Apex fixtures for the happy path and safety path.
+- `docs/` — walkthrough, runbook, architecture/security notes, public test cases, and production roadmap.
+
+The package is intentionally namespace-free in source control until the publisher chooses and registers a namespace. It does not automatically intercept every Flow: subscriber Flows must explicitly route a fault connector to `FFM_LogFlowErrorAction`.
+
+## Security posture
+
+The API uses a custom permission, sharing/FLS-aware queries, fixed routes, bounded pagination/date windows, field allowlists, redaction, and no arbitrary SOQL or Apex execution. The only write route is a non-executing recovery preview. Generic replay and automatic AI recovery are explicitly out of scope.
+
+See [`docs/architecture-and-security.md`](docs/architecture-and-security.md) for the threat model and [`docs/portfolio-readiness.md`](docs/portfolio-readiness.md) for the production hardening roadmap.
+
+## Portfolio proof
+
+```text
+✅ 6/6 Apex regression tests passed
+✅ MCP TypeScript build passed
+✅ npm audit --omit=dev found 0 vulnerabilities
+✅ Valid recovery completed through the allowlisted demo Flow
+✅ Invalid-record guard prevented Flow execution
+```
+
+This is a focused portfolio implementation: useful enough to install and demonstrate, intentionally bounded enough to explain. Production packaging still requires namespace/2GP setup, subscriber-org upgrade testing, retention controls, rate limiting, and deeper multi-user security validation.
 
 ## Package contents
 
