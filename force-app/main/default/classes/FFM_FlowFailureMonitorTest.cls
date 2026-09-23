@@ -98,6 +98,7 @@ private class FFM_FlowFailureMonitorTest {
         System.assertEquals(2, snapshot.topFlows.size());
         System.assertEquals('OrderFlow', snapshot.topFlows[0].flowName);
         System.assertEquals(3, snapshot.topFlows[0].eventCount);
+        System.assertEquals('Open', snapshot.topFlows[0].status);
         System.assertEquals(2, snapshot.topElements.size());
         System.assertEquals(3, snapshot.topElements[0].eventCount);
         System.assertEquals(2, snapshot.impact.size());

@@ -13,8 +13,9 @@ public with sharing class FFM_FlowErrorService {
         @AuraEnabled public Integer eventCount;
         @AuraEnabled public Integer groupCount;
         @AuraEnabled public Datetime lastSeen;
-        public DashboardFlow(String name, Integer events, Integer groups, Datetime seen) {
-            flowName = name; eventCount = events; groupCount = groups; lastSeen = seen;
+        @AuraEnabled public String status;
+        public DashboardFlow(String name, Integer events, Integer groups, Datetime seen, String flowStatus) {
+            flowName = name; eventCount = events; groupCount = groups; lastSeen = seen; status = flowStatus;
         }
     }
 
@@ -99,10 +100,24 @@ public with sharing class FFM_FlowErrorService {
             snapshot.trends.add(new DashboardTrend(String.valueOf(row.get('day')), aggregateInteger(row, 'total')));
         }
 
+        Set<String> topFlowNames = new Set<String>();
         for (AggregateResult row : [SELECT Flow_Name__c flowName, COUNT(Id) total, COUNT_DISTINCT(Failure_Group__c) groups, MAX(Occurred_At__c) lastSeen
                                     FROM Flow_Error__c WHERE Occurred_At__c >= :since WITH USER_MODE
                                     GROUP BY Flow_Name__c ORDER BY COUNT(Id) DESC LIMIT 10]) {
-            snapshot.topFlows.add(new DashboardFlow(String.valueOf(row.get('flowName')), aggregateInteger(row, 'total'), aggregateInteger(row, 'groups'), (Datetime)row.get('lastSeen')));
+            String flowName = String.valueOf(row.get('flowName'));
+            topFlowNames.add(flowName);
+            snapshot.topFlows.add(new DashboardFlow(flowName, aggregateInteger(row, 'total'), aggregateInteger(row, 'groups'), (Datetime)row.get('lastSeen'), 'Resolved'));
+        }
+        if (!topFlowNames.isEmpty()) {
+            Set<String> openFlowNames = new Set<String>();
+            for (AggregateResult row : [SELECT Flow_Name__c flowName, COUNT(Id) total
+                                        FROM Failure_Group__c
+                                        WHERE Status__c IN :OPEN_STATUSES AND Flow_Name__c IN :topFlowNames
+                                        AND Id IN (SELECT Failure_Group__c FROM Flow_Error__c WHERE Occurred_At__c >= :since)
+                                        WITH USER_MODE GROUP BY Flow_Name__c LIMIT 10]) {
+                openFlowNames.add(String.valueOf(row.get('flowName')));
+            }
+            for (DashboardFlow flow : snapshot.topFlows) flow.status = openFlowNames.contains(flow.flowName) ? 'Open' : 'Resolved';
         }
 
         for (AggregateResult row : [SELECT Flow_Name__c flowName, Element_Name__c elementName, COUNT(Id) total, COUNT_DISTINCT(Failure_Group__c) groups, MAX(Occurred_At__c) lastSeen

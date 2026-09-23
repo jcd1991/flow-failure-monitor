@@ -75,6 +75,13 @@ export default class FlowFailureMonitor extends LightningElement {
     get hasData() { return this.hasSnapshot && this.snapshot.failureEvents > 0; }
     get hasImpact() { return this.filteredImpact.length > 0; }
     get hasTopFlows() { return this.snapshot?.topFlows?.length > 0; }
+    get topFlowsView() {
+        return (this.snapshot?.topFlows || []).map((flow, index) => ({
+            ...flow,
+            key: `${flow.flowName}-${index}`,
+            statusClass: flow.status === 'Open' ? 'status-indicator status-indicator-open' : 'status-indicator status-indicator-resolved'
+        }));
+    }
     get topElementsView() {
         return (this.snapshot?.topElements || []).map((element, index) => ({ ...element, key: `${element.flowName}-${element.elementName}-${index}` }));
     }

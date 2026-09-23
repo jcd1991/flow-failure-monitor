@@ -60,7 +60,7 @@
                     <div class="insight-grid lower-grid">
                         <section class="panel" aria-labelledby="flows-heading">
                             <div class="section-heading"><div><p class="eyebrow">WHERE TO LOOK</p><h2 id="flows-heading">Top failing Flows</h2></div></div>
-                            <template if:true={hasTopFlows}><div class="flow-list"><template for:each={snapshot.topFlows} for:item="flow"><div class="flow-row" key={flow.flowName}><div class="flow-icon"><lightning-icon icon-name="utility:flow" size="small" alternative-text="Flow"></lightning-icon></div><div class="flow-info"><strong>{flow.flowName}</strong><span>{flow.groupCount} groups · last seen {flow.lastSeen}</span></div><strong class="flow-count">{flow.eventCount}</strong></div></template></div></template>
+                            <template if:true={hasTopFlows}><div class="flow-list"><template for:each={topFlowsView} for:item="flow"><div class="flow-row" key={flow.key}><div class="flow-icon"><lightning-icon icon-name="utility:flow" size="small" alternative-text="Flow"></lightning-icon></div><div class="flow-info"><strong>{flow.flowName}</strong><span>{flow.groupCount} groups · last seen {flow.lastSeen}</span><span class={flow.statusClass}>{flow.status}</span></div><strong class="flow-count">{flow.eventCount}</strong></div></template></div></template>
                             <template if:false={hasTopFlows}><p class="empty-copy">No Flow failures captured yet.</p></template>
                         </section>
                         <section class="panel" aria-labelledby="elements-heading">
