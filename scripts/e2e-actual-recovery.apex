@@ -9,7 +9,11 @@ if (groups.isEmpty()) {
     insert groupRecord;
 } else { groupRecord=groups[0]; }
 if ([SELECT COUNT() FROM Flow_Error__c WHERE Failure_Group__c=:groupRecord.Id] == 0) {
-    insert new Flow_Error__c(Failure_Group__c=groupRecord.Id,Flow_Name__c='FFM_DemoOrderFlow',Element_Name__c='ValidateOrder',Fault_Message__c='Demo failure before approved recovery',Record_Id__c=demoAccount.Id,Status__c='New',Redaction_Applied__c=true);
+    insert new Flow_Error__c(Failure_Group__c=groupRecord.Id,Flow_Name__c='FFM_DemoOrderFlow',Element_Name__c='ValidateOrder',Fault_Message__c='Demo failure before approved recovery',Record_Id__c=demoAccount.Id,Status__c='New',Occurred_At__c=System.now(),Redaction_Applied__c=true);
+} else {
+    List<Flow_Error__c> existingErrors = [SELECT Id,Occurred_At__c FROM Flow_Error__c WHERE Failure_Group__c=:groupRecord.Id];
+    for (Flow_Error__c error : existingErrors) if (error.Occurred_At__c == null) error.Occurred_At__c = System.now();
+    if (!existingErrors.isEmpty()) update existingErrors;
 }
 Recovery_Action__c action;
 List<Recovery_Action__c> actions=[SELECT Id FROM Recovery_Action__c WHERE Action_Key__c='E2E_DEMO_ORDER_REPAIR' LIMIT 1];

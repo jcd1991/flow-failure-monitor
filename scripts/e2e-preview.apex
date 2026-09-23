@@ -8,9 +8,13 @@ if (existingGroups.isEmpty()) {
 }
 if ([SELECT COUNT() FROM Flow_Error__c WHERE Failure_Group__c=:groupRecord.Id] == 0) {
     insert new List<Flow_Error__c>{
-        new Flow_Error__c(Failure_Group__c=groupRecord.Id, Flow_Name__c='FFM_DemoOrderFlow', Element_Name__c='RepairOrder', Fault_Message__c='Demo eligible record', Record_Id__c='001000000000001AAA', Status__c='New', Redaction_Applied__c=true),
-        new Flow_Error__c(Failure_Group__c=groupRecord.Id, Flow_Name__c='FFM_DemoOrderFlow', Element_Name__c='RepairOrder', Fault_Message__c='Demo skipped record', Record_Id__c='invalid', Status__c='New', Redaction_Applied__c=true)
+        new Flow_Error__c(Failure_Group__c=groupRecord.Id, Flow_Name__c='FFM_DemoOrderFlow', Element_Name__c='RepairOrder', Fault_Message__c='Demo eligible record', Record_Id__c='001000000000001AAA', Status__c='New', Occurred_At__c=System.now(), Redaction_Applied__c=true),
+        new Flow_Error__c(Failure_Group__c=groupRecord.Id, Flow_Name__c='FFM_DemoOrderFlow', Element_Name__c='RepairOrder', Fault_Message__c='Demo skipped record', Record_Id__c='invalid', Status__c='New', Occurred_At__c=System.now(), Redaction_Applied__c=true)
     };
+} else {
+    List<Flow_Error__c> existingErrors = [SELECT Id,Occurred_At__c FROM Flow_Error__c WHERE Failure_Group__c=:groupRecord.Id];
+    for (Flow_Error__c error : existingErrors) if (error.Occurred_At__c == null) error.Occurred_At__c = System.now();
+    if (!existingErrors.isEmpty()) update existingErrors;
 }
 Recovery_Action__c action;
 List<Recovery_Action__c> existingActions = [SELECT Id FROM Recovery_Action__c WHERE Action_Key__c='E2E_DEMO_ORDER_REPAIR' LIMIT 1];
