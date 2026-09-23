@@ -9,8 +9,8 @@ The project is a credible Salesforce/API portfolio prototype, but it is not yet 
 - Managed-package-shaped Salesforce source with bounded v2 DTO API.
 - Separate MCP companion with read-only tools, resolution planning, and preview-only recovery.
 - Repeatable real-data seed fixture and simulated recovery fixture.
-- Troubleshooting dashboard with summary metrics, samples, history, status updates, dry-run preview, and safe simulation.
-- Apex tests: 6/6 passing in the Developer Edition org.
+- Flow Reliability Dashboard with counts, bounded trends, grouped fingerprints, affected-record impact, samples, history, status updates, dry-run preview, and safe simulation.
+- Apex tests: 7/7 passing in the Developer Edition org.
 - Valid recovery demo: allowlisted recovery Flow updated the seeded Account through job `RJ-00024`.
 - Invalid-record safety demo: stale Account IDs are rejected before Flow execution.
 - MCP TypeScript build passing; production dependency audit reported zero vulnerabilities.
@@ -27,7 +27,7 @@ The project is a credible Salesforce/API portfolio prototype, but it is not yet 
 
 ## Portfolio finish line
 
-The portfolio version is complete when the README links to `docs/github-demo-walkthrough.md` and the reviewer can see one valid recovery and one invalid-record guard. This repository meets that bar. It is a focused prototype, not a claim of AppExchange production readiness.
+The portfolio version is complete when the README starts with the dashboard story, the reviewer can see counts/trends/grouping/impact, and the walkthrough includes one valid recovery plus one invalid-record guard. This repository meets that bar. It is a focused prototype, not a claim of AppExchange production readiness.
 
 ## Production roadmap
 

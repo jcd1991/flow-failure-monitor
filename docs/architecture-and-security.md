@@ -8,14 +8,16 @@ Flow fault connector
   → platform event
   → capture handler/service
   → Flow_Error__c + Failure_Group__c
-  → LWC dashboard / bounded DTO API
+  → bounded dashboard snapshot / LWC dashboard / DTO API
   → dry-run Recovery_Job__c
   → administrator approval
   → allowlisted recovery Flow
   → per-record Recovery_Result__c + audit history
 ```
 
-The package does not intercept every Flow automatically. A subscriber Flow must explicitly connect its fault path to the packaged invocable action.
+The package does not intercept every Flow automatically. A subscriber Flow must explicitly connect its fault path to the packaged invocable action, or publish a supported `FFM_Failure_Capture__e` event. Dashboard counts, trends, grouping, and impact are calculated only from captured `Flow_Error__c` records; they are not a claim about every Flow execution in the org. Native Salesforce Flow monitoring remains a separate source of information.
+
+The dashboard snapshot accepts only a bounded 1–90 day window (7, 30, or 90 days in the UI) and returns DTOs for event counts, distinct groups, distinct captured records, open groups, daily trends, top Flows/elements, and the top 50 impact groups. Overview responses do not expose raw long-text fault context.
 
 ## Security controls
 

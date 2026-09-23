@@ -1,38 +1,97 @@
 <template>
-    <lightning-card title="Flow Failure Monitor" icon-name="utility:warning">
-        <div class="slds-p-horizontal_small">
-            <div class="summary-grid slds-m-bottom_small">
-                <div class="summary-card"><span class="summary-label">Failure groups</span><strong>{groups.length}</strong></div>
-                <div class="summary-card"><span class="summary-label">Occurrences</span><strong>{totalOccurrences}</strong></div>
-                <div class="summary-card"><span class="summary-label">New</span><strong>{newGroups}</strong></div>
-                <div class="summary-card"><span class="summary-label">Investigating</span><strong>{investigatingGroups}</strong></div>
-            </div>
-            <lightning-combobox label="Status" value={status} options={statusOptions} onchange={changeStatus}></lightning-combobox>
-            <template if:true={loading}><lightning-spinner alternative-text="Loading"></lightning-spinner></template>
-            <template if:false={loading}>
-                <template if:true={groups.length}>
-                    <div class="slds-scrollable_x"><table class="slds-table slds-table_cell-buffer slds-table_bordered slds-m-top_small"><thead><tr><th>Flow / Element</th><th>Occurrences</th><th>Status</th><th>Recovery</th></tr></thead><tbody>
-                        <template for:each={groups} for:item="group"><tr key={group.Id}><td><strong>{group.Flow_Name__c}</strong><div>{group.Element_Name__c}</div><div class="message">{group.Representative_Message__c}</div></td><td>{group.Occurrence_Count__c}</td><td><lightning-badge label={group.Status__c}></lightning-badge></td><td><lightning-button label="Investigate" data-id={group.Id} onclick={openPreview}></lightning-button></td></tr></template>
-                    </tbody></table></div>
+    <lightning-card icon-name="utility:metrics">
+        <div class="dashboard-shell">
+            <header class="dashboard-header">
+                <div>
+                    <p class="eyebrow">FLOW RELIABILITY</p>
+                    <h1>Flow Reliability Dashboard</h1>
+                    <p class="subtitle">See recurring failures, understand their impact, and decide what to do next.</p>
+                </div>
+                <div class="header-controls">
+                    <lightning-combobox label="Time window" variant="label-hidden" value={selectedDays} options={dateOptions} onchange={changeDays}></lightning-combobox>
+                    <lightning-button-icon icon-name="utility:refresh" alternative-text="Refresh dashboard" title="Refresh dashboard" onclick={refresh}></lightning-button-icon>
+                </div>
+            </header>
+
+            <template if:true={hasSnapshot}>
+                <div class={sourceStatusClass} role="status">
+                    <lightning-icon icon-name={sourceStatusIcon} size="x-small" alternative-text="Capture status"></lightning-icon>
+                    <div>
+                        <strong>{snapshot.captureSource.status}</strong>
+                        <span>{snapshot.captureSource.detail}</span>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={loading}><div class="loading-state"><lightning-spinner alternative-text="Loading reliability dashboard"></lightning-spinner><span>Loading captured failure data…</span></div></template>
+            <template if:true={dashboardError}><div class="error-state" role="alert"><lightning-icon icon-name="utility:error" size="small" alternative-text="Error"></lightning-icon><span>{dashboardError}</span><lightning-button label="Try again" onclick={refresh}></lightning-button></div></template>
+
+            <template if:true={hasSnapshot}>
+                <section aria-labelledby="summary-heading">
+                    <div class="section-heading"><div><p class="eyebrow">AT A GLANCE</p><h2 id="summary-heading">Captured reliability signals</h2></div><span class="window-label">Last {snapshot.windowDays} days</span></div>
+                    <div class="metric-grid">
+                        <article class="metric-card metric-card-blue"><span class="metric-label">Failure events</span><strong>{snapshot.failureEvents}</strong><span>captured fault records</span></article>
+                        <article class="metric-card metric-card-purple"><span class="metric-label">Failure groups</span><strong>{snapshot.failureGroups}</strong><span>recurring fingerprints</span></article>
+                        <article class="metric-card metric-card-amber"><span class="metric-label">Affected records</span><strong>{snapshot.affectedRecords}</strong><span>distinct captured IDs</span></article>
+                        <article class="metric-card metric-card-red"><span class="metric-label">Open groups</span><strong>{snapshot.openGroups}</strong><span>need investigation</span></article>
+                    </div>
+                </section>
+
+                <template if:true={hasData}>
+                    <div class="insight-grid">
+                        <section class="panel trend-panel" aria-labelledby="trend-heading">
+                            <div class="section-heading"><div><p class="eyebrow">MOMENTUM</p><h2 id="trend-heading">Failure trend</h2></div><span class="panel-meta">events / day</span></div>
+                            <template if:true={hasTrends}>
+                                <div class="trend-chart" role="img" aria-label="Daily captured Flow failure events">
+                                    <template for:each={trendBars} for:item="trend"><div class="trend-column" key={trend.day} title={trend.title}><div class="trend-bar" style={trend.style}></div><span>{trend.label}</span></div></template>
+                                </div>
+                            </template>
+                            <template if:false={hasTrends}><p class="empty-copy">No captured events in this window.</p></template>
+                        </section>
+
+                        <section class="panel source-panel" aria-labelledby="source-heading">
+                            <div class="section-heading"><div><p class="eyebrow">COVERAGE</p><h2 id="source-heading">How data enters here</h2></div></div>
+                            <p class="source-copy">This dashboard is a reliability view of captured failures—not an automatic counter of every Flow execution in the org.</p>
+                            <ul class="source-list"><template for:each={snapshot.captureSource.supportedSources} for:item="source"><li key={source}><lightning-icon icon-name="utility:check" size="xx-small" alternative-text="Supported"></lightning-icon>{source}</li></template></ul>
+                            <p class="source-footnote">Add a fault connector to the Flow action you want to observe, or publish a supported capture event.</p>
+                        </section>
+                    </div>
+
+                    <div class="insight-grid lower-grid">
+                        <section class="panel" aria-labelledby="flows-heading">
+                            <div class="section-heading"><div><p class="eyebrow">WHERE TO LOOK</p><h2 id="flows-heading">Top failing Flows</h2></div></div>
+                            <template if:true={hasTopFlows}><div class="flow-list"><template for:each={snapshot.topFlows} for:item="flow"><div class="flow-row" key={flow.flowName}><div class="flow-icon"><lightning-icon icon-name="utility:flow" size="small" alternative-text="Flow"></lightning-icon></div><div class="flow-info"><strong>{flow.flowName}</strong><span>{flow.groupCount} groups · last seen {flow.lastSeen}</span></div><strong class="flow-count">{flow.eventCount}</strong></div></template></div></template>
+                            <template if:false={hasTopFlows}><p class="empty-copy">No Flow failures captured yet.</p></template>
+                        </section>
+                        <section class="panel" aria-labelledby="elements-heading">
+                            <div class="section-heading"><div><p class="eyebrow">HOTSPOTS</p><h2 id="elements-heading">Top failing elements</h2></div></div>
+                            <template if:true={hasTopElements}><div class="element-list"><template for:each={topElementsView} for:item="element"><div class="element-row" key={element.key}><div><strong>{element.elementName}</strong><span>{element.flowName} · {element.groupCount} groups</span></div><strong>{element.eventCount}</strong></div></template></div></template>
+                            <template if:false={hasTopElements}><p class="empty-copy">No failing elements in this window.</p></template>
+                        </section>
+                    </div>
+
+                    <section class="panel impact-panel" aria-labelledby="impact-heading">
+                        <div class="section-heading"><div><p class="eyebrow">IMPACT QUEUE</p><h2 id="impact-heading">Failure groups to investigate</h2></div><lightning-combobox label="Filter by status" variant="label-hidden" value={statusFilter} options={statusOptions} onchange={changeStatus}></lightning-combobox></div>
+                        <template if:true={hasImpact}><div class="impact-table-wrap"><table class="impact-table"><thead><tr><th scope="col">Flow / element</th><th scope="col">Events</th><th scope="col">Records</th><th scope="col">Status</th><th scope="col"><span class="slds-assistive-text">Action</span></th></tr></thead><tbody><template for:each={filteredImpact} for:item="row"><tr key={row.id}><td><strong>{row.flowName}</strong><span>{row.elementName}</span><small>{row.message}</small></td><td>{row.eventCount}</td><td>{row.affectedRecords}</td><td><lightning-badge label={row.status}></lightning-badge></td><td><lightning-button label="Investigate" data-id={row.id} onclick={openDetails}></lightning-button></td></tr></template></tbody></table></div></template>
+                        <template if:false={hasImpact}><p class="empty-copy">No failure groups match this status filter.</p></template>
+                    </section>
                 </template>
-                <template if:false={groups.length}><p class="slds-p-around_medium">No Flow failure groups match this filter.</p></template>
+
+                <template if:false={hasData}><section class="empty-dashboard" aria-labelledby="empty-heading"><lightning-icon icon-name="utility:success" size="medium" alternative-text="No captured failures"></lightning-icon><h2 id="empty-heading">No captured failures in this window</h2><p>That means this package has not received a failure event in the selected period. Confirm that your Flows have an explicit fault connector or a supported capture-event publisher before treating this as a clean bill of health.</p></section></template>
             </template>
         </div>
     </lightning-card>
 
-    <template if:true={showPreview}><section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open"><div class="slds-modal__container">
-        <header class="slds-modal__header"><h2 class="slds-text-heading_medium">Investigate and recover safely</h2></header>
+    <template if:true={showDetails}><section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="details-heading" class="slds-modal slds-fade-in-open"><div class="slds-modal__container detail-modal">
+        <header class="slds-modal__header"><h2 id="details-heading">Investigate failure group</h2><p>{detailsTitle}</p></header>
         <div class="slds-modal__content slds-p-around_medium">
             <template if:true={hasSamples}><h3 class="slds-text-heading_small">Captured failures</h3><template for:each={samples} for:item="sample"><div key={sample.Id} class="slds-box slds-m-top_x-small"><strong>{sample.Status__c}</strong> — {sample.Fault_Message__c}<br/><span class="muted">Record: {sample.Record_Id__c} · Retry count: {sample.Retry_Count__c}</span></div></template></template>
-            <h3 class="slds-text-heading_small slds-m-top_medium">Troubleshooting checklist</h3><ul class="slds-list_dotted"><li>Confirm the Flow version and failing element.</li><li>Validate the affected record and required fields.</li><li>Check whether the operation already partially completed.</li><li>Choose an approved recovery action only after review.</li></ul>
+            <h3 class="slds-text-heading_small slds-m-top_medium">Troubleshooting checklist</h3><ul class="slds-list_dotted checklist"><li>Confirm the Flow version and failing element.</li><li>Validate the affected record and required fields.</li><li>Check whether the operation already partially completed.</li><li>Fix the Flow metadata when the logic is wrong.</li><li>Use an approved recovery action only for already-affected records.</li></ul>
             <div class="slds-m-top_small"><lightning-button label="Mark investigating" data-status="Investigating" onclick={setGroupStatus}></lightning-button><lightning-button class="slds-m-left_x-small" label="Mark resolved" data-status="Resolved" onclick={setGroupStatus}></lightning-button></div>
             <template if:true={hasHistory}><h3 class="slds-text-heading_small slds-m-top_medium">Resolution history</h3><template for:each={history} for:item="item"><div key={item.Id} class="slds-box slds-m-top_x-small">{item.Activity_Type__c}: {item.From_Status__c} → {item.To_Status__c}<br/>{item.Notes__c}</div></template></template>
-            <h3 class="slds-text-heading_small slds-m-top_medium">Approved recovery action</h3><lightning-combobox label="Select action" variant="label-hidden" value={selectedAction} options={actionOptions} onchange={selectAction}></lightning-combobox>
-            <p class="slds-m-top_small">First run a dry-run. A demo action can then execute its one allowlisted recovery Flow on the selected record. Other actions remain simulation-only.</p>
-            <template if:true={actionLoadError}><p class="slds-text-color_error">Recovery actions could not be loaded: {actionLoadError}</p></template>
-            <template if:true={previewRunning}><p role="status">Running dry-run preview…</p></template><template if:true={previewError}><p class="slds-text-color_error" role="alert">{previewError}</p></template><template if:true={statusMessage}><p class="slds-m-top_small" role="status">{statusMessage}</p></template>
-            <template if:true={preview}><p><strong>Eligible:</strong> {preview.job.Eligible_Count__c} <strong>Skipped:</strong> {preview.job.Skipped_Count__c} <strong>Job:</strong> {preview.job.Name}</p><template for:each={preview.results} for:item="result"><div key={result.Id} class="slds-box slds-m-top_x-small"><strong>{result.Outcome__c}</strong> — {result.Reason__c}</div></template></template>
+            <button class="recovery-toggle" type="button" aria-expanded={showRecovery} onclick={toggleRecovery}><lightning-icon icon-name="utility:chevronright" size="xx-small" alternative-text="Expand recovery"></lightning-icon><span>Advanced recovery (optional)</span></button>
+            <template if:true={showRecovery}><div class="recovery-panel"><p>Recovery does not replay the failed Flow. It previews and, only after approval, runs a configured repair Flow.</p><lightning-combobox label="Approved recovery action" value={selectedAction} options={actionOptions} onchange={selectAction}></lightning-combobox><template if:true={actionLoadError}><p class="slds-text-color_error">Recovery actions could not be loaded: {actionLoadError}</p></template><template if:true={previewRunning}><p role="status">Running dry-run preview…</p></template><template if:true={previewError}><p class="slds-text-color_error" role="alert">{previewError}</p></template><template if:true={statusMessage}><p class="slds-m-top_small" role="status">{statusMessage}</p></template><template if:true={preview}><p><strong>Eligible:</strong> {preview.job.Eligible_Count__c} <strong>Skipped:</strong> {preview.job.Skipped_Count__c} <strong>Job:</strong> {preview.job.Name}</p><template for:each={preview.results} for:item="result"><div key={result.Id} class="slds-box slds-m-top_x-small"><strong>{result.Outcome__c}</strong> — {result.Reason__c}</div></template></template><div class="recovery-actions"><lightning-button label="Run dry-run" disabled={previewDisabled} onclick={runPreview}></lightning-button><lightning-button label="Simulate" disabled={simulateDisabled} onclick={simulate}></lightning-button><lightning-button variant="brand" label="Execute approved demo recovery" disabled={executeDisabled} onclick={executeDemo}></lightning-button></div></div></template>
         </div>
-        <footer class="slds-modal__footer recovery-footer"><div class="recovery-row"><lightning-button label="Cancel" onclick={closePreview}></lightning-button><lightning-button variant="neutral" label="Run dry-run" disabled={previewDisabled} onclick={runPreview}></lightning-button></div><div class="recovery-row recovery-row-actions"><div class="recovery-choice"><lightning-button variant="neutral" label="Simulate" disabled={simulateDisabled} onclick={simulate}></lightning-button><span class="action-caption">(no business change)</span></div><div class="recovery-choice"><lightning-button variant="brand" label="Execute" disabled={executeDisabled} onclick={executeDemo}></lightning-button><span class="action-caption">(approved recovery)</span></div></div></footer>
+        <footer class="slds-modal__footer"><lightning-button label="Close" onclick={closeDetails}></lightning-button></footer>
     </div></section><div class="slds-backdrop slds-backdrop_open"></div></template>
 </template>

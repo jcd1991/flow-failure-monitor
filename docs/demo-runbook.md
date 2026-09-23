@@ -1,28 +1,49 @@
 # Portfolio demo runbook
 
-This is a controlled, repeatable demo. It demonstrates a real Flow fault connector, detection, investigation, dry-run recovery, and a safe simulated completion without replaying the original Flow transaction. It also includes an optional allowlisted recovery Flow that changes one demo Account only.
+This is a controlled reliability-dashboard demo. It demonstrates captured Flow faults, counts, trends, grouping, impact analysis, investigation, and an optional safe recovery path.
 
 ## Trigger the real Flow fault path
 
-The packaged `FFM_DemoOrderFlow` invokes `FFM_DemoFailureAction`, whose intentional exception is routed through the Flow's fault connector to `FFM_DemoFaultLogger`, then through the normal platform-event capture pipeline.
+The packaged `FFM_DemoOrderFlow` invokes `FFM_DemoFailureAction`. Its fault connector routes the exception to `FFM_DemoFaultLogger`, which publishes the normal `FFM_Failure_Capture__e` event.
 
 ```bash
 sf apex run --target-org <org-alias> --file scripts/e2e-flow-fault.apex
 ```
 
-After a short platform-event delivery delay, the dashboard shows a new `FFM_DemoOrderFlow / ValidateOrder` group.
+After platform-event delivery, open the Flow Failure Monitor tab. The dashboard should show the captured event in its cards, trend, top-Flow list, and impact queue.
 
-## Seed and preview
+## Seed the optional recovery fixture
 
 ```bash
 sf apex run --target-org <org-alias> --file scripts/e2e-preview.apex
 ```
 
-Open the Flow Failure Monitor tab. Select the `FFM_DemoOrderFlow / RepairOrder` group, review the captured eligible and invalid records, mark the group Investigating, select `Demo order repair (dry-run only)`, and run the preview.
+This creates or reuses the demo failure group and `Demo order repair (approved Flow)` action.
 
-## Simulate the approved recovery
+## Dashboard validation
 
-After reviewing the preview, click **Simulate approved recovery**. This updates only the recovery audit records: eligible results become `Success`, skipped records remain `Skipped`, and the job becomes `Completed`. No business record, Flow, email, or callout is changed.
+Verify:
+
+- The default window is **Last 30 days**.
+- Failure events and failure groups are visible.
+- Repeated failures appear as one grouped fingerprint.
+- Affected-record count is distinct rather than raw event count.
+- The top Flow and failing element appear in the hotspot panels.
+- The coverage panel explains fault connectors and supported capture events.
+- Changing to 7 or 90 days reloads the snapshot.
+
+## Investigation validation
+
+Click **Investigate** for a group and verify:
+
+- Captured samples and redacted messages are visible.
+- The checklist distinguishes Flow fixes from data repair.
+- Status actions update the group and add resolution history.
+- Recovery is collapsed under **Advanced recovery (optional)**.
+
+## Optional simulation
+
+Expand advanced recovery, choose the approved demo action, and click **Run dry-run**. Then click **Simulate**. Eligible results become successful audit results, but no business record, Flow, email, or callout changes.
 
 The equivalent CLI step is:
 
@@ -30,15 +51,28 @@ The equivalent CLI step is:
 sf apex run --target-org <org-alias> --file scripts/e2e-simulate.apex
 ```
 
-## What this proves
+## Optional valid recovery
 
-- A captured Flow failure can be grouped and investigated.
-- Redacted failure samples and resolution history are visible.
-- An approved recovery action can be previewed with eligible/skipped accounting.
-- A completion path is auditable without pretending to replay a partially completed transaction.
+Run:
 
-## Execute the actual demo recovery
+```bash
+sf apex run --target-org <org-alias> --file scripts/e2e-actual-recovery.apex
+```
 
-Run `sf apex run --target-org <org-alias> --file scripts/e2e-actual-recovery.apex`, refresh the dashboard, and open the `Demo failure before approved recovery` group. Select `Demo order repair (approved Flow)`, run the dry-run, then click **Execute approved demo recovery**. The expected result is `Eligible: 1`, `Success`, and a completed recovery job. Verify the Account named `FFM Actual Recovery Demo`; its Description will say that the approved recovery Flow executed.
+Refresh the dashboard, open the seeded group, run the dry-run, then execute the approved demo recovery. Verify that only the `FFM Actual Recovery Demo` Account receives the recovery marker.
 
-This is deliberately limited to the allowlisted demo Flow. Real customer recovery still requires an org-specific Flow, idempotency contract, retry policy, and separate-user permission tests.
+## Invalid-record safety path
+
+```bash
+sf apex run --target-org <org-alias> --file scripts/e2e-invalid-record.apex
+```
+
+The expected result is:
+
+```text
+No matching Account exists; the recovery Flow was not executed.
+```
+
+## Capture boundary
+
+The dashboard only reports failures that reach the package through an explicit fault connector calling `FFM_LogFlowErrorAction` or a supported `FFM_Failure_Capture__e` publisher. It is not an automatic org-wide Flow execution counter.

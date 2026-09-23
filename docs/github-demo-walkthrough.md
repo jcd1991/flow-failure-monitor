@@ -1,22 +1,22 @@
-# Flow Failure Monitor: five-minute demo
+# Flow Reliability Dashboard: five-minute demo
 
-Flow Failure Monitor turns a failed Salesforce Flow into a bounded, reviewable incident. This walkthrough is designed for a GitHub README, portfolio review, or live screen share.
+Flow Failure Monitor turns captured Salesforce Flow failures into a reliability dashboard: counts, trends, grouped fingerprints, affected-record impact, and a focused investigation path. Recovery is intentionally secondary; the product does not blindly replay failed transactions.
 
-## What the demo shows
+## What the audience sees
 
 ```text
-Real Flow fault
-  → fault connector
-  → redacted capture event
-  → grouped failure fingerprint
-  → investigation workspace
-  → dry-run recovery preview
-  → approved recovery Flow or safe simulation
+Open dashboard
+  → choose 7/30/90-day window
+  → read counts and failure trend
+  → identify top failing Flow/element
+  → inspect affected-record impact
+  → investigate one group
+  → optionally preview an approved recovery
 ```
 
-The demo offers two explicit endings: a no-side-effect simulation, or one allowlisted recovery Flow that changes only the seeded demo Account. Neither path replays the original failed transaction.
+The dashboard is based on `Flow_Error__c` and `Failure_Group__c` records captured by the package. It is not an automatic counter of every Flow execution in the org.
 
-## 1. Start with a clean demo dataset
+## 1. Seed the demo data
 
 From the project root:
 
@@ -24,71 +24,79 @@ From the project root:
 sf apex run --target-org <org-alias> --file scripts/e2e-preview.apex
 ```
 
-This creates or reuses the demo failure group and the approved recovery action. The fixture is idempotent, so it can be run repeatedly.
+This creates or reuses the demo failure group and approved recovery action. The fixture is idempotent.
 
-## 2. Trigger a real Flow failure
-
-Run the packaged autolaunched Flow through its real fault path:
+## 2. Trigger a real Flow fault
 
 ```bash
 sf apex run --target-org <org-alias> --file scripts/e2e-flow-fault.apex
 ```
 
-`FFM_DemoOrderFlow` invokes an intentionally failing Apex action. Its fault connector invokes the capture logger, which publishes the same platform event used by subscriber Flows.
-
-Wait a few seconds for platform-event delivery, then open the Salesforce tab:
+`FFM_DemoOrderFlow` intentionally fails an Apex action. Its fault connector passes `$Flow.FaultMessage` to `FFM_DemoFaultLogger`, which publishes the normal `FFM_Failure_Capture__e` event. After platform-event delivery, open:
 
 `/lightning/n/Flow_Failure_Monitor1`
 
-## 3. Investigate the incident
-
-Open the `FFM_DemoOrderFlow / ValidateOrder` group.
+## 3. Start on the dashboard
 
 Point out:
 
-- The grouped fingerprint and occurrence count
-- The redacted fault message
-- The source `demo-fault-connector`
-- The captured record reference
-- The resolution history
-- The troubleshooting checklist
+- **Failure events:** captured fault records in the selected time window.
+- **Failure groups:** recurring fingerprints, not raw Flow runs.
+- **Affected records:** distinct captured record IDs.
+- **Open groups:** groups still marked New, Acknowledged, or Investigating.
+- **Failure trend:** daily captured-event volume.
+- **Top failing Flows/elements:** where to investigate first.
+- **Impact queue:** event count, record count, status, and representative message.
 
-Click **Mark investigating**. This creates a status activity record; it does not alter the failed business transaction.
+Change the time window from 30 days to 7 or 90 days to show that the dashboard is queryable over a bounded period.
 
-## 4. Preview the approved recovery
+## 4. Explain capture coverage
 
-Choose `Demo order repair (approved Flow)` and click **Run dry-run**.
+The coverage panel is intentionally visible. The dashboard only receives failures from:
 
-Explain the result:
+1. An explicit Flow fault connector that calls `FFM_LogFlowErrorAction`.
+2. A supported publisher of `FFM_Failure_Capture__e`.
 
-- Eligible records can be handled by the configured action.
-- Invalid or missing record IDs are skipped.
+If a Flow has neither, the dashboard cannot infer that it failed. An empty dashboard means “no captured events,” not necessarily “every Flow is healthy.”
+
+## 5. Investigate one group
+
+Click **Investigate** in the impact queue. Show:
+
+- Captured samples and redacted messages.
+- Record references and retry counts.
+- The troubleshooting checklist.
+- Resolution history.
+- **Mark investigating** and **Mark resolved** status actions.
+
+The checklist tells the admin to fix Flow metadata when the logic is wrong and to use recovery only for already-affected records.
+
+## 6. Optional advanced recovery
+
+Expand **Advanced recovery (optional)** only after the dashboard story is complete.
+
+Choose `Demo order repair (approved Flow)` and click **Run dry-run**. Explain:
+
+- Eligible and skipped records are counted.
 - A `Recovery_Job__c` audit record is created.
-- No recovery Flow, email, callout, or business-record update executes.
+- No recovery Flow or business record changes during preview.
+- Simulation changes audit records only.
+- Execute is restricted to the allowlisted demo recovery Flow.
 
-## 5. Complete the safe portfolio demo
-
-For a no-side-effect walkthrough, click **Simulate** with `(no business change)` underneath. For the actual demo path, click **Execute** with `(approved recovery)` underneath; that button is enabled only for the allowlisted demo action.
-
-The valid demo result becomes `Success`, and the job becomes `Completed`. To demonstrate the safety guard, run `scripts/e2e-invalid-record.apex`, open its group, and execute the same action: the result should say `No matching Account exists; the recovery Flow was not executed.`
-
-The equivalent CLI step is:
+For the valid path:
 
 ```bash
 sf apex run --target-org <org-alias> --file scripts/e2e-actual-recovery.apex
+```
+
+For the safety path:
+
+```bash
 sf apex run --target-org <org-alias> --file scripts/e2e-invalid-record.apex
 ```
 
-## Suggested README media
-
-For a public repository, capture three sanitized screenshots or a short GIF:
-
-1. Dashboard summary showing grouped failures.
-2. Investigation dialog showing samples and checklist.
-3. Preview result showing eligible/skipped counts and simulated completion.
-
-Do not include org URLs, usernames, record IDs, access tokens, or customer data in public media.
+The invalid path must report `No matching Account exists; the recovery Flow was not executed.`
 
 ## Safety boundary
 
-This project intentionally does not implement generic “replay the failed Flow.” Flows may have partially created records, sent emails, made callouts, or updated related records. Real recovery execution requires an org-specific approved recovery Flow, explicit administrator approval, idempotency guarantees, retry limits, and separate permission tests.
+This project does not implement generic “replay the failed Flow.” A failed Flow may already have created records, sent email, made a callout, or updated related records. Real recovery requires an org-specific repair Flow, idempotency guarantees, explicit approval, retry limits, and separate permission tests.
